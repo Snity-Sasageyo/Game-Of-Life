@@ -1,5 +1,7 @@
 const canvas = document.getElementById('game-board');
 const ctx = canvas.getContext('2d');
+const graphCanvas = document.getElementById('pop-graph');
+const graphCtx = graphCanvas.getContext('2d');
 const btnPlay = document.getElementById('btn-play');
 const btnStep = document.getElementById('btn-step');
 const btnClear = document.getElementById('btn-clear');
@@ -32,33 +34,18 @@ let mouseMoved = false;
 let currentMode = 'pan';
 let tickSpeed = 120;
 let isErasing = false;
+let hoverX = null;
+let hoverY = null;
+let popHistory = [];
 
 const PATTERN_STRINGS = {
-  glider: [
-    ".X.",
-    "..X",
-    "XXX"
-  ],
-  lwss: [
-    ".X..X",
-    "X....",
-    "X...X",
-    "XXXX."
-  ],
+  glider: [".X.", "..X", "XXX"],
+  lwss: [".X..X", "X....", "X...X", "XXXX."],
   pulsar: [
-    "..XXX...XXX..",
-    ".............",
-    "X....X.X....X",
-    "X....X.X....X",
-    "X....X.X....X",
-    "..XXX...XXX..",
-    ".............",
-    "..XXX...XXX..",
-    "X....X.X....X",
-    "X....X.X....X",
-    "X....X.X....X",
-    ".............",
-    "..XXX...XXX.."
+    "..XXX...XXX..", ".............", "X....X.X....X",
+    "X....X.X....X", "X....X.X....X", "..XXX...XXX..",
+    ".............", "..XXX...XXX..", "X....X.X....X",
+    "X....X.X....X", "X....X.X....X", ".............", "..XXX...XXX.."
   ]
 };
 
@@ -96,6 +83,29 @@ function screenToWorld(sx, sy) {
 function updateLabels() {
   genLabel.textContent = `Gen: ${generation}`;
   cellLabel.textContent = `Cells: ${livingCells.size}`;
+}
+
+function drawGraph() {
+  let w = graphCanvas.width;
+  let h = graphCanvas.height;
+  graphCtx.fillStyle = '#111';
+  graphCtx.fillRect(0, 0, w, h);
+
+  if (popHistory.length < 2) return;
+
+  let maxPop = Math.max(...popHistory, 1);
+  let stepX = w / 99;
+
+  graphCtx.beginPath();
+  for (let i = 0; i < popHistory.length; i++) {
+    let px = i * stepX;
+    let py = h - (popHistory[i] / maxPop) * (h - 4) - 2;
+    if (i === 0) graphCtx.moveTo(px, py);
+    else graphCtx.lineTo(px, py);
+  }
+  graphCtx.strokeStyle = '#666';
+  graphCtx.lineWidth = 1.5;
+  graphCtx.stroke();
 }
 
 function countNeighbors(x, y) {
@@ -155,6 +165,9 @@ function computeNext() {
   livingCells = nextGen;
   cellTrails = nextTrails;
   generation++;
+  
+  popHistory.push(livingCells.size);
+  if (popHistory.length > 100) popHistory.shift();
 }
 
 function toggleCell(sx, sy) {
@@ -253,7 +266,15 @@ function render() {
     ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
   }
 
+  if (hoverX !== null && currentMode === 'draw' && !isDragging) {
+    let px = hoverX * cellSize + offsetX;
+    let py = hoverY * cellSize + offsetY;
+    ctx.fillStyle = 'rgba(200, 200, 200, 0.25)';
+    ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
+  }
+
   updateLabels();
+  drawGraph();
 }
 
 function startRunning() {
@@ -277,6 +298,7 @@ function clearBoard() {
   livingCells.clear();
   cellTrails.clear();
   generation = 0;
+  popHistory = [];
   render();
 }
 
@@ -297,6 +319,7 @@ function seedRandom() {
 
   generation = 0;
   cellTrails.clear();
+  popHistory = [livingCells.size];
   render();
 }
 
@@ -349,11 +372,10 @@ function handleFileLoad(e) {
         livingCells = new Set(data.cells);
         generation = data.gen || 0;
         cellTrails.clear();
+        popHistory = [livingCells.size];
         render();
       }
-    } catch (err) {
-      console.warn('Failed to parse save file');
-    }
+    } catch (err) {}
   };
   reader.readAsText(file);
   fileInput.value = '';
@@ -426,10 +448,14 @@ canvas.addEventListener('mousedown', (e) => {
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-window.addEventListener('mousemove', (e) => {
+canvas.addEventListener('mousemove', (e) => {
   let rect = canvas.getBoundingClientRect();
   let mx = e.clientX - rect.left;
   let my = e.clientY - rect.top;
+
+  let {x, y} = screenToWorld(mx, my);
+  hoverX = x;
+  hoverY = y;
 
   if (isDragging) {
     let dx = e.clientX - dragStartX;
@@ -446,6 +472,12 @@ window.addEventListener('mousemove', (e) => {
   }
 });
 
+canvas.addEventListener('mouseleave', () => {
+  hoverX = null;
+  hoverY = null;
+  render();
+});
+
 window.addEventListener('mouseup', (e) => {
   if (isDragging && !mouseMoved && e.button === 0 && !isErasing) {
     let rect = canvas.getBoundingClientRect();
@@ -456,6 +488,51 @@ window.addEventListener('mouseup', (e) => {
   isDragging = false;
   isDrawing = false;
   isErasing = false;
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    let t = e.touches[0];
+    let rect = canvas.getBoundingClientRect();
+    let mx = t.clientX - rect.left;
+    let my = t.clientY - rect.top;
+    
+    if (currentMode === 'draw') {
+      isDrawing = true;
+      paintCell(mx, my);
+    } else {
+      isDragging = true;
+      dragStartX = t.clientX;
+      dragStartY = t.clientY;
+      dragOffsetX = offsetX;
+      dragOffsetY = offsetY;
+    }
+    render();
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    let t = e.touches[0];
+    let rect = canvas.getBoundingClientRect();
+    let mx = t.clientX - rect.left;
+    let my = t.clientY - rect.top;
+    
+    if (isDragging) {
+      offsetX = dragOffsetX + (t.clientX - dragStartX);
+      offsetY = dragOffsetY + (t.clientY - dragStartY);
+    } else if (isDrawing) {
+      paintCell(mx, my);
+    }
+    render();
+  }
+}, {passive: false});
+
+canvas.addEventListener('touchend', () => {
+  isDragging = false;
+  isDrawing = false;
 });
 
 canvas.addEventListener('wheel', (e) => {
@@ -512,7 +589,9 @@ window.addEventListener('resize', resizeCanvas);
 offsetX = Math.floor(window.innerWidth / 2);
 offsetY = Math.floor((window.innerHeight - 40) / 2);
 
+popHistory.push(0);
 setMode('pan');
 resizeCanvas();
+
 
 

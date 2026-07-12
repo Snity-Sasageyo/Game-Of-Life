@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Game of Life</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -34,6 +34,7 @@
       <input type="range" id="speed-range" min="16" max="500" value="120">
     </div>
     <div class="tool-group tool-info">
+      <canvas id="pop-graph" width="120" height="24"></canvas>
       <span id="gen-count">Gen: 0</span>
       <span id="cell-count">Cells: 0</span>
     </div>

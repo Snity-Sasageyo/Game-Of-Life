@@ -12,6 +12,7 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  touch-action: none;
 }
 
 #tool-strip {
@@ -42,6 +43,7 @@ body {
   cursor: pointer;
   border-radius: 3px;
   font-family: inherit;
+  touch-action: manipulation;
 }
 
 .tool-btn:hover {
@@ -79,6 +81,13 @@ input[type="range"] {
 
 #file-input {
   display: none;
+}
+
+#pop-graph {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  display: block;
 }
 
 #game-board {
