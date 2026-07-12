@@ -1,0 +1,67 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #111;
+  color: #ccc;
+  font-family: -apple-system, "Segoe UI", Helvetica, sans-serif;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#tool-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.tool-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tool-btn {
+  background: #2a2a2a;
+  color: #bbb;
+  border: 1px solid #3a3a3a;
+  padding: 5px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+.tool-btn:hover {
+  background: #383838;
+  color: #eee;
+}
+
+.tool-btn:active {
+  background: #444;
+}
+
+.tool-info {
+  font-size: 12px;
+  color: #777;
+  gap: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+#game-board {
+  flex: 1;
+  display: block;
+  cursor: crosshair;
+}
+
+
