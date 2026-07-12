@@ -4,8 +4,12 @@ const btnPlay = document.getElementById('btn-play');
 const btnStep = document.getElementById('btn-step');
 const btnClear = document.getElementById('btn-clear');
 const btnSeed = document.getElementById('btn-seed');
+const btnCenter = document.getElementById('btn-center');
 const btnModePan = document.getElementById('btn-mode-pan');
 const btnModeDraw = document.getElementById('btn-mode-draw');
+const btnSave = document.getElementById('btn-save');
+const btnLoad = document.getElementById('btn-load');
+const fileInput = document.getElementById('file-input');
 const speedRange = document.getElementById('speed-range');
 const genLabel = document.getElementById('gen-count');
 const cellLabel = document.getElementById('cell-count');
@@ -14,6 +18,7 @@ let cellSize = 16;
 let offsetX = 0;
 let offsetY = 0;
 let livingCells = new Set();
+let cellTrails = new Map();
 let generation = 0;
 let isRunning = false;
 let tickTimer = null;
@@ -135,7 +140,20 @@ function computeNext() {
     }
   }
 
+  let nextTrails = new Map();
+  for (let [key, age] of cellTrails) {
+    if (!nextGen.has(key)) {
+      if (age < 3) nextTrails.set(key, age + 1);
+    }
+  }
+  for (let key of livingCells) {
+    if (!nextGen.has(key)) {
+      nextTrails.set(key, 1);
+    }
+  }
+
   livingCells = nextGen;
+  cellTrails = nextTrails;
   generation++;
 }
 
@@ -203,9 +221,26 @@ function render() {
     ctx.stroke();
   }
 
-  ctx.fillStyle = '#c8c8c8';
   let pad = Math.max(1, Math.floor(cellSize * 0.1));
 
+  for (let [key, age] of cellTrails) {
+    if (livingCells.has(key)) continue;
+    let [cx, cy] = key.split(',');
+    let nx = Number(cx);
+    let ny = Number(cy);
+    let px = nx * cellSize + offsetX;
+    let py = ny * cellSize + offsetY;
+
+    if (px + cellSize < 0 || px > w || py + cellSize < 0 || py > h) continue;
+
+    if (age === 1) ctx.fillStyle = '#444';
+    else if (age === 2) ctx.fillStyle = '#2a2a2a';
+    else ctx.fillStyle = '#1a1a1a';
+
+    ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
+  }
+
+  ctx.fillStyle = '#c8c8c8';
   for (let key of livingCells) {
     let [cx, cy] = key.split(',');
     let nx = Number(cx);
@@ -240,6 +275,7 @@ function stopRunning() {
 function clearBoard() {
   stopRunning();
   livingCells.clear();
+  cellTrails.clear();
   generation = 0;
   render();
 }
@@ -260,7 +296,67 @@ function seedRandom() {
   }
 
   generation = 0;
+  cellTrails.clear();
   render();
+}
+
+function centerView() {
+  if (livingCells.size === 0) return;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  
+  for (let key of livingCells) {
+    let [cx, cy] = key.split(',');
+    let nx = Number(cx);
+    let ny = Number(cy);
+    if (nx < minX) minX = nx;
+    if (nx > maxX) maxX = nx;
+    if (ny < minY) minY = ny;
+    if (ny > maxY) maxY = ny;
+  }
+  
+  let centerX = (minX + maxX) / 2;
+  let centerY = (minY + maxY) / 2;
+  
+  offsetX = (canvas.width / 2) - (centerX * cellSize) - (cellSize / 2);
+  offsetY = (canvas.height / 2) - (centerY * cellSize) - (cellSize / 2);
+  
+  render();
+}
+
+function saveState() {
+  let data = {
+    gen: generation,
+    cells: [...livingCells]
+  };
+  let blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = url;
+  a.download = `gol-gen-${generation}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function handleFileLoad(e) {
+  let file = e.target.files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      let data = JSON.parse(evt.target.result);
+      if (data.cells && Array.isArray(data.cells)) {
+        livingCells = new Set(data.cells);
+        generation = data.gen || 0;
+        cellTrails.clear();
+        render();
+      }
+    } catch (err) {
+      console.warn('Failed to parse save file');
+    }
+  };
+  reader.readAsText(file);
+  fileInput.value = '';
 }
 
 function setMode(mode) {
@@ -283,6 +379,7 @@ btnStep.addEventListener('click', () => {
 
 btnClear.addEventListener('click', clearBoard);
 btnSeed.addEventListener('click', seedRandom);
+btnCenter.addEventListener('click', centerView);
 
 btnModePan.addEventListener('click', () => setMode('pan'));
 btnModeDraw.addEventListener('click', () => setMode('draw'));
@@ -292,6 +389,10 @@ document.querySelectorAll('.pat-btn').forEach(btn => {
     placePattern(btn.dataset.pat);
   });
 });
+
+btnSave.addEventListener('click', saveState);
+btnLoad.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', handleFileLoad);
 
 speedRange.addEventListener('input', (e) => {
   tickSpeed = Number(e.target.value);
@@ -378,6 +479,33 @@ canvas.addEventListener('wheel', (e) => {
 
   render();
 }, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  
+  switch(e.code) {
+    case 'Space':
+      e.preventDefault();
+      if (isRunning) stopRunning();
+      else startRunning();
+      break;
+    case 'ArrowRight':
+    case 'KeyN':
+      if (isRunning) stopRunning();
+      computeNext();
+      render();
+      break;
+    case 'KeyC':
+      clearBoard();
+      break;
+    case 'KeyR':
+      seedRandom();
+      break;
+    case 'KeyF':
+      centerView();
+      break;
+  }
+});
 
 window.addEventListener('resize', resizeCanvas);
 

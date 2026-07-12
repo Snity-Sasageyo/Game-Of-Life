@@ -77,6 +77,10 @@ input[type="range"] {
   cursor: pointer;
 }
 
+#file-input {
+  display: none;
+}
+
 #game-board {
   flex: 1;
   display: block;
