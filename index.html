@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game of Life</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="tool-strip">
+        <div class="tool-group">
+            <button id="btn-play" class="tool-btn">Play</button>
+            <button id="btn-step" class="tool-btn">Step</button>
+            <button id="btn-clear" class="tool-btn">Clear</button>
+            <button id="btn-seed" class="tool-btn">Random</button>
+        </div>
+        <div class="tool-group tool-info">
+            <span id="gen-count">Gen: 0</span>
+            <span id="cell-count">Cells: 0</span>
+        </div>
+    </div>
+    <canvas id="game-board"></canvas>
+    <script src="script.js"></script>
+</body>
+</html>
