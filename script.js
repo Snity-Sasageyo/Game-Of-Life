@@ -13,13 +13,15 @@ const btnSave = document.getElementById('btn-save');
 const btnLoad = document.getElementById('btn-load');
 const fileInput = document.getElementById('file-input');
 const speedRange = document.getElementById('speed-range');
+const ruleSelect = document.getElementById('rule-select');
+const brushBtns = document.querySelectorAll('.brush-btn');
 const genLabel = document.getElementById('gen-count');
 const cellLabel = document.getElementById('cell-count');
 
 let cellSize = 16;
 let offsetX = 0;
 let offsetY = 0;
-let livingCells = new Set();
+let livingCells = new Map();
 let cellTrails = new Map();
 let generation = 0;
 let isRunning = false;
@@ -37,6 +39,14 @@ let isErasing = false;
 let hoverX = null;
 let hoverY = null;
 let popHistory = [];
+let brushSize = 1;
+
+const RULES = {
+  conway: { b: [3], s: [2, 3] },
+  highlife: { b: [3, 6], s: [2, 3] },
+  seeds: { b: [2], s: [] }
+};
+let currentRule = RULES.conway;
 
 const PATTERN_STRINGS = {
   glider: [".X.", "..X", "XXX"],
@@ -121,9 +131,9 @@ function countNeighbors(x, y) {
 
 function computeNext() {
   let checked = new Set();
-  let nextGen = new Set();
+  let nextGen = new Map();
 
-  for (let key of livingCells) {
+  for (let key of livingCells.keys()) {
     checked.add(key);
     let [cx, cy] = key.split(',');
     let nx = Number(cx);
@@ -143,10 +153,14 @@ function computeNext() {
     let neighbors = countNeighbors(nx, ny);
     let isLiving = livingCells.has(key);
 
-    if (isLiving && (neighbors === 2 || neighbors === 3)) {
-      nextGen.add(key);
-    } else if (!isLiving && neighbors === 3) {
-      nextGen.add(key);
+    if (isLiving) {
+      if (currentRule.s.includes(neighbors)) {
+        nextGen.set(key, livingCells.get(key));
+      }
+    } else {
+      if (currentRule.b.includes(neighbors)) {
+        nextGen.set(key, generation);
+      }
     }
   }
 
@@ -156,7 +170,7 @@ function computeNext() {
       if (age < 3) nextTrails.set(key, age + 1);
     }
   }
-  for (let key of livingCells) {
+  for (let key of livingCells.keys()) {
     if (!nextGen.has(key)) {
       nextTrails.set(key, 1);
     }
@@ -182,25 +196,26 @@ function toggleCell(sx, sy) {
 
 function paintCell(sx, sy) {
   let { x, y } = screenToWorld(sx, sy);
-  let key = `${x},${y}`;
-  if (isErasing) {
-    livingCells.delete(key);
-  } else {
-    livingCells.add(key);
+  let half = Math.floor(brushSize / 2);
+  for (let dx = -half; dx <= half; dx++) {
+    for (let dy = -half; dy <= half; dy++) {
+      let key = `${x + dx},${y + dy}`;
+      if (isErasing) {
+        livingCells.delete(key);
+      } else {
+        if (!livingCells.has(key)) livingCells.set(key, generation);
+      }
+    }
   }
 }
 
 function placePattern(name) {
   let coords = PATTERNS[name];
   if (!coords) return;
-  
   let centerX = Math.floor(canvas.width / 2);
   let centerY = Math.floor(canvas.height / 2);
   let { x: wx, y: wy } = screenToWorld(centerX, centerY);
-  
-  for (let [dx, dy] of coords) {
-    livingCells.add(`${wx + dx},${wy + dy}`);
-  }
+  for (let [dx, dy] of coords) livingCells.set(`${wx + dx},${wy + dy}`, generation);
   render();
 }
 
@@ -219,7 +234,6 @@ function render() {
   if (cellSize > 8) {
     ctx.strokeStyle = '#1e1e1e';
     ctx.lineWidth = 0.5;
-
     ctx.beginPath();
     for (let x = startX; x <= endX; x++) {
       let px = x * cellSize + offsetX;
@@ -253,8 +267,7 @@ function render() {
     ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
   }
 
-  ctx.fillStyle = '#c8c8c8';
-  for (let key of livingCells) {
+  for (let [key, birthGen] of livingCells) {
     let [cx, cy] = key.split(',');
     let nx = Number(cx);
     let ny = Number(cy);
@@ -263,14 +276,28 @@ function render() {
 
     if (px + cellSize < 0 || px > w || py + cellSize < 0 || py > h) continue;
 
+    let age = generation - birthGen;
+    if (age < 5) ctx.fillStyle = '#66b2ff';
+    else if (age < 20) ctx.fillStyle = '#ffcc00';
+    else ctx.fillStyle = '#ff4400';
+
     ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
   }
 
-  if (hoverX !== null && currentMode === 'draw' && !isDragging) {
-    let px = hoverX * cellSize + offsetX;
-    let py = hoverY * cellSize + offsetY;
-    ctx.fillStyle = 'rgba(200, 200, 200, 0.25)';
-    ctx.fillRect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
+  if (hoverX !== null && !isDragging) {
+    let half = Math.floor(brushSize / 2);
+    let outlineColor = currentMode === 'draw' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.15)';
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let dx = -half; dx <= half; dx++) {
+      for (let dy = -half; dy <= half; dy++) {
+        let px = (hoverX + dx) * cellSize + offsetX;
+        let py = (hoverY + dy) * cellSize + offsetY;
+        ctx.rect(px + pad, py + pad, cellSize - pad * 2, cellSize - pad * 2);
+      }
+    }
+    ctx.stroke();
   }
 
   updateLabels();
@@ -314,7 +341,7 @@ function seedRandom() {
   for (let i = 0; i < count; i++) {
     let rx = topLeft.x + Math.floor(Math.random() * cols);
     let ry = topLeft.y + Math.floor(Math.random() * rows);
-    livingCells.add(`${rx},${ry}`);
+    livingCells.set(`${rx},${ry}`, 0);
   }
 
   generation = 0;
@@ -328,7 +355,7 @@ function centerView() {
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   
-  for (let key of livingCells) {
+  for (let key of livingCells.keys()) {
     let [cx, cy] = key.split(',');
     let nx = Number(cx);
     let ny = Number(cy);
@@ -350,7 +377,7 @@ function centerView() {
 function saveState() {
   let data = {
     gen: generation,
-    cells: [...livingCells]
+    cells: Array.from(livingCells.entries())
   };
   let blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
   let url = URL.createObjectURL(blob);
@@ -369,7 +396,7 @@ function handleFileLoad(e) {
     try {
       let data = JSON.parse(evt.target.result);
       if (data.cells && Array.isArray(data.cells)) {
-        livingCells = new Set(data.cells);
+        livingCells = new Map(data.cells);
         generation = data.gen || 0;
         cellTrails.clear();
         popHistory = [livingCells.size];
@@ -386,6 +413,14 @@ function setMode(mode) {
   btnModePan.classList.toggle('active', mode === 'pan');
   btnModeDraw.classList.toggle('active', mode === 'draw');
   canvas.classList.toggle('panning', mode === 'pan');
+}
+
+function setBrushSize(size) {
+  brushSize = size;
+  brushBtns.forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.size) === size);
+  });
+  render();
 }
 
 btnPlay.addEventListener('click', () => {
@@ -407,14 +442,22 @@ btnModePan.addEventListener('click', () => setMode('pan'));
 btnModeDraw.addEventListener('click', () => setMode('draw'));
 
 document.querySelectorAll('.pat-btn').forEach(btn => {
+  btn.addEventListener('click', () => placePattern(btn.dataset.pat));
+});
+
+brushBtns.forEach(btn => {
   btn.addEventListener('click', () => {
-    placePattern(btn.dataset.pat);
+    setBrushSize(Number(btn.dataset.size));
   });
 });
 
 btnSave.addEventListener('click', saveState);
 btnLoad.addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', handleFileLoad);
+
+ruleSelect.addEventListener('change', (e) => {
+  currentRule = RULES[e.target.value];
+});
 
 speedRange.addEventListener('input', (e) => {
   tickSpeed = Number(e.target.value);
@@ -465,11 +508,10 @@ canvas.addEventListener('mousemove', (e) => {
     }
     offsetX = dragOffsetX + dx;
     offsetY = dragOffsetY + dy;
-    render();
   } else if (isDrawing) {
     paintCell(mx, my);
-    render();
   }
+  render();
 });
 
 canvas.addEventListener('mouseleave', () => {
@@ -484,7 +526,6 @@ window.addEventListener('mouseup', (e) => {
     toggleCell(e.clientX - rect.left, e.clientY - rect.top);
     render();
   }
-  
   isDragging = false;
   isDrawing = false;
   isErasing = false;
@@ -558,29 +599,29 @@ canvas.addEventListener('wheel', (e) => {
 }, { passive: false });
 
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   
-  switch(e.code) {
-    case 'Space':
-      e.preventDefault();
-      if (isRunning) stopRunning();
-      else startRunning();
-      break;
-    case 'ArrowRight':
-    case 'KeyN':
-      if (isRunning) stopRunning();
-      computeNext();
-      render();
-      break;
-    case 'KeyC':
-      clearBoard();
-      break;
-    case 'KeyR':
-      seedRandom();
-      break;
-    case 'KeyF':
-      centerView();
-      break;
+  let key = e.key.toLowerCase();
+  let code = e.code;
+
+  if (code === 'Space' || key === ' ') {
+    e.preventDefault();
+    if (isRunning) stopRunning();
+    else startRunning();
+  } else if (code === 'ArrowRight' || key === 'n') {
+    if (isRunning) stopRunning();
+    computeNext();
+    render();
+  } else if (key === 'c') {
+    clearBoard();
+  } else if (key === 'r') {
+    seedRandom();
+  } else if (key === 'f') {
+    centerView();
+  } else if (key === '[' || code === 'BracketLeft') {
+    setBrushSize(brushSize === 1 ? 1 : brushSize - 2);
+  } else if (key === ']' || code === 'BracketRight') {
+    setBrushSize(brushSize === 5 ? 5 : brushSize + 2);
   }
 });
 

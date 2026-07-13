@@ -61,6 +61,27 @@ body {
   border-color: #666;
 }
 
+.brush-btn {
+  padding: 5px 10px;
+  min-width: 36px;
+}
+
+.tool-select {
+  background: #2a2a2a;
+  color: #bbb;
+  border: 1px solid #3a3a3a;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tool-select:focus {
+  outline: none;
+  border-color: #666;
+}
+
 .tool-info {
   font-size: 12px;
   color: #777;

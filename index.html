@@ -19,6 +19,18 @@
       <button id="btn-mode-pan" class="tool-btn active">Pan</button>
       <button id="btn-mode-draw" class="tool-btn">Draw</button>
     </div>
+    <div class="tool-group tool-rules">
+      <select id="rule-select" class="tool-select">
+        <option value="conway">Conway</option>
+        <option value="highlife">HighLife</option>
+        <option value="seeds">Seeds</option>
+      </select>
+    </div>
+    <div class="tool-group tool-brush">
+      <button class="tool-btn brush-btn active" data-size="1">1x</button>
+      <button class="tool-btn brush-btn" data-size="3">3x</button>
+      <button class="tool-btn brush-btn" data-size="5">5x</button>
+    </div>
     <div class="tool-group tool-patterns">
       <button class="tool-btn pat-btn" data-pat="glider">Glider</button>
       <button class="tool-btn pat-btn" data-pat="lwss">Ship</button>
