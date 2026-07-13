@@ -12,6 +12,7 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  touch-action: none;
 }
 
 #tool-strip {
@@ -23,6 +24,8 @@ body {
   border-bottom: 1px solid #2a2a2a;
   flex-shrink: 0;
   z-index: 2;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tool-group {
@@ -40,6 +43,7 @@ body {
   cursor: pointer;
   border-radius: 3px;
   font-family: inherit;
+  touch-action: manipulation;
 }
 
 .tool-btn:hover {
@@ -51,11 +55,60 @@ body {
   background: #444;
 }
 
+.tool-btn.active {
+  background: #4a4a4a;
+  color: #fff;
+  border-color: #666;
+}
+
+.brush-btn {
+  padding: 5px 10px;
+  min-width: 36px;
+}
+
+.tool-select {
+  background: #2a2a2a;
+  color: #bbb;
+  border: 1px solid #3a3a3a;
+  padding: 4px 8px;
+  font-size: 13px;
+  border-radius: 3px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tool-select:focus {
+  outline: none;
+  border-color: #666;
+}
+
 .tool-info {
   font-size: 12px;
   color: #777;
   gap: 16px;
   font-variant-numeric: tabular-nums;
+}
+
+.tool-speed label {
+  font-size: 12px;
+  color: #777;
+}
+
+input[type="range"] {
+  width: 80px;
+  accent-color: #888;
+  cursor: pointer;
+}
+
+#file-input {
+  display: none;
+}
+
+#pop-graph {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 2px;
+  display: block;
 }
 
 #game-board {
@@ -64,4 +117,10 @@ body {
   cursor: crosshair;
 }
 
+#game-board.panning {
+  cursor: grab;
+}
 
+#game-board.panning:active {
+  cursor: grabbing;
+}
