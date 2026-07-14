@@ -26,3 +26,6 @@ It is a cellular automation sandbox. Uses a sparse coordinate Map for state mana
 * `[` / `]`: Increase/Decrease brush size
 
 <img width="800" height="372" alt="ezgif-41d11403839ba876" src="https://github.com/user-attachments/assets/caa6ede2-b990-44e3-afdc-d418f441bc55" />
+
+
+The project follows an endless theme because the grid has no edges nor there is any win or loss state. You can pan millions of pixels in any direction and it won't crash. And there is no "Game Over" screen, no final score and no objectives to complete. 
